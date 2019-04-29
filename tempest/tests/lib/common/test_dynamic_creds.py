@@ -667,3 +667,34 @@ class TestDynamicCredentialProviderV3(TestDynamicCredentialProvider):
                 "Member role already exists, ignoring conflict.")
         creds.creds_client.assign_user_role.assert_called_once_with(
             mock.ANY, mock.ANY, 'Member')
+
+    def test_compute_quota_set(self):
+        expected = {
+            'cores': 123,
+            'instances': 456
+        }
+        dummy_project_id = "bd7ac6e3c4ea414b9376e145891430d4"
+        params = {k: v for k, v in self.fixed_params.items()}
+        params["compute_quotas"] = expected
+        creds = dynamic_creds.DynamicCredentialProvider(**params)
+        creds.creds_client = mock.MagicMock()
+        creds.creds_client.create_project.return_value = {
+            'id': dummy_project_id
+        }
+        creds.compute_quotas_client = mock.MagicMock()
+        creds.compute_quotas_client.update_quota_set.return_value = None
+        creds._create_creds()
+        creds.compute_quotas_client.update_quota_set.assert_called_once_with(
+            tenant_id=dummy_project_id, user_id=mock.ANY, **expected)
+
+    def test_compute_quota_not_set(self):
+        creds = dynamic_creds.DynamicCredentialProvider(**self.fixed_params)
+        creds.creds_client = mock.MagicMock()
+        dummy_project_id = "bd7ac6e3c4ea414b9376e145891430d4"
+        creds.creds_client.create_project.return_value = {
+            'id': dummy_project_id
+        }
+        creds.compute_quotas_client = mock.MagicMock()
+        creds.compute_quotas_client.update_quota_set.return_value = None
+        creds._create_creds()
+        self.assertFalse(creds.compute_quotas_client.update_quota_set.called)

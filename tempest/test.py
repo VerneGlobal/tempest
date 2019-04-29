@@ -638,10 +638,11 @@ class BaseTestCase(testtools.testcase.WithAttributes,
                 not cls._creds_provider.name == cls.__name__):
             force_tenant_isolation = getattr(cls, 'force_tenant_isolation',
                                              False)
-
+            force_default_quotas = getattr(cls, 'force_default_quotas', False)
             cls._creds_provider = credentials.get_credentials_provider(
                 name=cls.__name__, network_resources=cls._network_resources,
-                force_tenant_isolation=force_tenant_isolation)
+                force_tenant_isolation=force_tenant_isolation,
+                force_default_quotas=force_default_quotas)
         return cls._creds_provider
 
     @classmethod

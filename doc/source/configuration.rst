@@ -99,6 +99,18 @@ admin operations. Note that the initial pre-provision admin accounts,
 configured in tempest.conf, must have a role on the same domain as well, for
 Dynamic Credentials to work.
 
+Quotas
+""""""
+
+By default, tempest will use the default set of quotas for all of the users it
+creates. It is possible to overide this by setting the ``compute_quotas`` option in
+the ``auth`` section of the config file, e.g::
+
+  [auth]
+  compute_quotas = cores:100,ram:61035
+
+For a full list of options see the `Nova quota documentation <https://docs.openstack.org/nova/latest/admin/quotas.html>`_.
+
 
 Pre-Provisioned Credentials
 """""""""""""""""""""""""""

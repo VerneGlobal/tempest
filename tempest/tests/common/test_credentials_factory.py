@@ -117,6 +117,23 @@ class TestCredentialsFactory(base.TestCase):
             name=expected_name, network_resources=expected_network_resources,
             **expected_params)
 
+    @mock.patch.object(dynamic_creds, 'DynamicCredentialProvider')
+    @mock.patch.object(cf, 'get_credentials')
+    def test_get_credentials_provider_dynamic_compute_quotas(
+            self, mock_get_creds, mock_dynamic_credentials_provider_class):
+        mock_get_creds.return_value = mock.Mock()
+        expected_quotas = {'cores': '123', 'instances': '456'}
+        cfg.CONF.set_default('use_dynamic_credentials', True, group='auth')
+        cfg.CONF.set_default('compute_quotas', expected_quotas, group='auth')
+        cf.get_credentials_provider(
+            "test",
+            network_resources={'network': 'resources'},
+            force_tenant_isolation=False,
+            identity_version='v3')
+        mock_dynamic_credentials_provider_class.assert_called_once()
+        args, kwargs = mock_dynamic_credentials_provider_class.call_args
+        self.assertEqual(expected_quotas, dict(kwargs["compute_quotas"]))
+
     @mock.patch.object(preprov_creds, 'PreProvisionedCredentialProvider')
     @mock.patch.object(cf, 'get_preprov_provider_params')
     def test_get_credentials_provider_preprov(

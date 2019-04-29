@@ -87,7 +87,8 @@ def get_dynamic_provider_params(identity_version, admin_creds=None):
         ('create_networks', (CONF.auth.create_isolated_networks and not
                              CONF.network.shared_physical_network)),
         ('resource_prefix', 'tempest'),
-        ('identity_admin_endpoint_type', endpoint_type)
+        ('identity_admin_endpoint_type', endpoint_type),
+        ('compute_quotas', CONF.auth.compute_quotas),
     ]))
 
 
@@ -113,7 +114,8 @@ def get_preprov_provider_params(identity_version):
 
 def get_credentials_provider(name, network_resources=None,
                              force_tenant_isolation=False,
-                             identity_version=None):
+                             identity_version=None,
+                             force_default_quotas=False):
     """Return the right implementation of CredentialProvider based on config
 
     This helper returns the right implementation of CredentialProvider based on
@@ -128,6 +130,8 @@ def get_credentials_provider(name, network_resources=None,
                                    regardless of the configuration.
     :param identity_version: Use the specified identity API version, regardless
                              of the configuration. Valid values are 'v2', 'v3'.
+    :param force_default_quotas: if True, any quotas from the config will be
+                                 ignored
     """
     # If a test requires a new account to work, it can have it via forcing
     # dynamic credentials. A new account will be produced only for that test.
@@ -135,10 +139,13 @@ def get_credentials_provider(name, network_resources=None,
     # the test should be skipped else it would fail.
     identity_version = identity_version or CONF.identity.auth_version
     if CONF.auth.use_dynamic_credentials or force_tenant_isolation:
+        params = get_dynamic_provider_params(identity_version)
+        if force_default_quotas:
+            params["compute_quotas"] = None
         return dynamic_creds.DynamicCredentialProvider(
             name=name,
             network_resources=network_resources,
-            **get_dynamic_provider_params(identity_version))
+            **params)
     else:
         if CONF.auth.test_accounts_file:
             # Most params are not relevant for pre-created accounts

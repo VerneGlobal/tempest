@@ -1,0 +1,7 @@
+---
+features:
+  - |
+    Added a ``compute_quotas`` config option to the ``auth`` section of to the
+    config file. This allows you to set the compute quotas of the projects that
+    are created when using the dynamic users feature. See `#1827065
+    <https://bugs.launchpad.net/tempest/+bug/1827065>`_ for more details.

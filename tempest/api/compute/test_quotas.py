@@ -21,6 +21,10 @@ from tempest.lib import decorators
 
 class QuotasTestJSON(base.BaseV2ComputeTest):
 
+    # Tests in this class do not use CONF.auth.compute_quotas, as they rely on
+    # default quotas being used.
+    force_default_quotas = True
+
     @classmethod
     def skip_checks(cls):
         super(QuotasTestJSON, cls).skip_checks()

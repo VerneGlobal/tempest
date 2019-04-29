@@ -64,6 +64,7 @@ class DynamicCredentialProvider(cred_provider.CredentialProvider):
     :param identity_admin_endpoint_type: The endpoint type for identity
                                          admin clients. Defaults to public.
     :param identity_uri: Identity URI of the target cloud
+    :param compute_quotas: Key pair mapping of quota name to numerical limit
     """
 
     def __init__(self, identity_version, name=None, network_resources=None,
@@ -73,7 +74,8 @@ class DynamicCredentialProvider(cred_provider.CredentialProvider):
                  neutron_available=False, create_networks=True,
                  project_network_cidr=None, project_network_mask_bits=None,
                  public_network_id=None, resource_prefix=None,
-                 identity_admin_endpoint_type='public', identity_uri=None):
+                 identity_admin_endpoint_type='public', identity_uri=None,
+                 compute_quotas=None):
         super(DynamicCredentialProvider, self).__init__(
             identity_version=identity_version, identity_uri=identity_uri,
             admin_role=admin_role, name=name,
@@ -102,7 +104,8 @@ class DynamicCredentialProvider(cred_provider.CredentialProvider):
          self.routers_admin_client,
          self.subnets_admin_client,
          self.ports_admin_client,
-         self.security_groups_admin_client) = self._get_admin_clients(
+         self.security_groups_admin_client,
+         self.compute_quotas_client) = self._get_admin_clients(
             identity_admin_endpoint_type)
         # Domain where isolated credentials are provisioned (v3 only).
         # Use that of the admin account is None is configured.
@@ -118,6 +121,7 @@ class DynamicCredentialProvider(cred_provider.CredentialProvider):
             self.roles_admin_client,
             self.domains_admin_client,
             self.creds_domain_name)
+        self.compute_quotas = compute_quotas or {}
 
     def _get_admin_clients(self, endpoint_type):
         """Returns a tuple with instances of the following admin clients
@@ -138,7 +142,8 @@ class DynamicCredentialProvider(cred_provider.CredentialProvider):
                     os.network.RoutersClient(),
                     os.network.SubnetsClient(),
                     os.network.PortsClient(),
-                    os.network.SecurityGroupsClient())
+                    os.network.SecurityGroupsClient(),
+                    os.compute.QuotasClient())
         else:
             # We use a dedicated client manager for identity client in case we
             # need a different token scope for them.
@@ -155,7 +160,8 @@ class DynamicCredentialProvider(cred_provider.CredentialProvider):
                     os.network.RoutersClient(),
                     os.network.SubnetsClient(),
                     os.network.PortsClient(),
-                    os.network.SecurityGroupsClient())
+                    os.network.SecurityGroupsClient(),
+                    os.compute.QuotasClient())
 
     def _create_creds(self, admin=False, roles=None):
         """Create credentials with random name.
@@ -193,6 +199,20 @@ class DynamicCredentialProvider(cred_provider.CredentialProvider):
                     self.identity_admin_domain_scope):
                 self.creds_client.assign_user_role_on_domain(
                     user, self.identity_admin_role)
+        # Set compute quotas if requested
+        quotas = {k: v for k, v in self.compute_quotas.items() if v}
+        if quotas:
+            # NOTE(wszumski): compute_quotas_client doesn't support user_id
+            # at this moment in time.
+            try:
+                self.compute_quotas_client.update_quota_set(
+                    tenant_id=project["id"], user_id=None, **quotas
+                )
+            except lib_exc.InvalidHttpSuccessCode as e:
+                LOG.error("Error setting compute quotas. Please check that "
+                          "CONF.auth.compute_quotas does not contain any "
+                          "unsupported options.")
+                raise e
         # Add roles specified in config file
         for conf_role in self.extra_roles:
             self.creds_client.assign_user_role(user, project, conf_role)

@@ -95,6 +95,9 @@ AuthGroup = [
                default='Default',
                help="Admin domain name for authentication (Keystone V3). "
                     "The same domain applies to user and project"),
+    cfg.DictOpt('compute_quotas',
+                help="Compute quotas to assign to all users created by "
+                     "tempest", default={}),
 ]
 
 identity_group = cfg.OptGroup(name='identity',
