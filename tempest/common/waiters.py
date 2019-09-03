@@ -12,6 +12,8 @@
 
 import re
 import time
+import json
+from subprocess import Popen, PIPE
 
 from oslo_log import log as logging
 
@@ -129,6 +131,27 @@ def wait_for_server_termination(client, server_id, ignore_error=False):
             raise lib_exc.TimeoutException
         old_status = server_status
         old_task_state = task_state
+
+
+def wait_for_server_pre_create(client, **args):
+    """shell script hook to determine if we can boot a server"""
+    if not CONF.compute.pre_create_hook:
+        return
+    timeout = 1200
+    start_time = int(time.time())
+    while True:
+        time.sleep(client.build_interval)
+        server = json.dumps(args)
+        process = Popen([CONF.compute.pre_create_hook, server], stdout=PIPE)
+        (output, err) = process.communicate()
+        exit_code = process.wait()
+        # HACK
+        elapsed = int(time.time()) - start_time
+        if exit_code == 0:
+            LOG.info("waited {} for ironic nodes".format(elapsed))
+            return
+        if elapsed >= timeout:
+            raise lib_exc.TimeoutException
 
 
 def wait_for_image_status(client, image_id, status):

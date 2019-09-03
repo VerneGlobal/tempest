@@ -376,6 +376,11 @@ ComputeGroup = [
                     'allow_availability_zone_fallback=False in cinder.conf), '
                     'the volume create request will fail and the instance '
                     'will fail the build request.'),
+    cfg.StrOpt('pre_create_hook',
+               default=None,
+               help="Path to an executable. This should return the status"
+                    "code: zero, if there is sufficient capacity to boot"
+                    "a server"),
 ]
 
 placement_group = cfg.OptGroup(name='placement',
