@@ -155,7 +155,7 @@ class TestNetworkBasicOps(manager.NetworkScenarioTest):
             self.assertIn(self.router['id'],
                           seen_router_ids)
 
-    def _create_server(self, network, port_id=None):
+    def _create_server(self, network, port_id=None, **kwargs):
         keypair = self.create_keypair()
         self.keypairs[keypair['name']] = keypair
         security_groups = [
@@ -168,7 +168,8 @@ class TestNetworkBasicOps(manager.NetworkScenarioTest):
         server = self.create_server(
             networks=[network],
             key_name=keypair['name'],
-            security_groups=security_groups)
+            security_groups=security_groups,
+            **kwargs)
         self.servers.append(server)
         return server
 
@@ -882,3 +883,39 @@ class TestNetworkBasicOps(manager.NetworkScenarioTest):
                                       security_groups=[])
         self.check_remote_connectivity(ssh_client, dest=peer_address,
                                        nic=spoof_nic, should_succeed=True)
+
+    @decorators.idempotent_id('15081158-acf2-4173-9c57-0b108d8c7a10')
+    @decorators.attr(type='slow')
+    @utils.services('compute', 'network')
+    def test_connectivity_between_different_flavors(self):
+        """Test connectivity between instances with different flavors
+
+        For a freshly-booted VM with an IP address ("port") on a given network:
+
+        - the Tempest host can ping the IP address.
+        - the Tempest host can ssh into the VM via the IP address and
+            successfully execute the following:
+
+            - ping an external IP address, implying external connectivity.
+            - ping an external hostname, implying that dns is correctly
+               configured.
+            - ping an internal IP address, implying connectivity to another
+               VM on the same network.
+
+        - Create a VM on the same network with the alternative flavor.
+
+            - Pinging the new VM from previous VM should succeed.
+
+        """
+        self._setup_network_and_servers()
+        self._check_public_network_connectivity(should_connect=True)
+        self._check_network_internal_connectivity(network=self.network)
+        self._check_network_external_connectivity()
+        new_server = self._create_server(self.network,
+                                         flavor=CONF.compute.flavor_ref_alt)
+        new_server_ips = [addr['addr'] for addr in
+                          new_server['addresses'][self.network['name']]]
+
+        # Check that we can access the other server.
+        self._check_server_connectivity(self.floating_ip_tuple.floating_ip,
+                                        new_server_ips, should_connect=True)
